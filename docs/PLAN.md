@@ -1,0 +1,115 @@
+# 趣味提案アプリ 実装計画書
+
+作成: Fable(計画担当) / 実装: Sonnet / 敵対的レビュー: Opus
+
+## 1. コンセプト
+
+自分の特性(性格・予算・使える時間・体力・住んでいる地域など)を入力すると、
+マッチ度つきでオススメの趣味を提案するWebアプリ。単なる提案で終わらず、
+
+- **初期投資**(必要な道具と概算費用、月額ランニングコスト)
+- **地域のコミュニティ**(都道府県に応じたサークル・教室・イベントの探し方リンク)
+- **始め方の最初の3ステップ**
+
+まで含めて「今日から始められる」レベルでサポートする。
+
+## 2. 技術選定
+
+| 項目 | 選定 | 理由 |
+|---|---|---|
+| フレームワーク | Vite + React 18 + TypeScript | バックエンド不要の完全静的SPA。無料で静的ホスティング可能 |
+| 状態管理 | React useState / useReducer のみ | 画面遷移が単純(診断→結果)なので外部ライブラリ不要 |
+| スタイル | 素のCSS(CSS変数でテーマ) | 依存を最小化。レスポンシブ+ダークモード対応 |
+| テスト | Vitest | 推薦エンジンとデータ整合性をユニットテストで担保 |
+| データ | リポジトリ内の静的TSデータ | 外部APIなし。オフラインでも動く |
+
+## 3. 機能仕様
+
+### 3.1 特性診断(入力)
+
+10問程度の選択式質問。各回答は特性軸のスコアに寄与する。
+
+特性軸(0–4 の5段階):
+- `indoor_outdoor`: インドア ←→ アウトドア
+- `social`: ひとりで楽しむ ←→ みんなで楽しむ
+- `physical`: 体を動かさない ←→ 動かす
+- `creative`: 鑑賞・消費 ←→ 創作・生産
+- `learning`: 気軽に楽しむ ←→ 学び・上達を追求
+
+制約条件(フィルタ/ペナルティに使用):
+- `budget`: 初期投資の上限(〜5千円 / 〜2万円 / 〜10万円 / 上限なし)
+- `time`: 週に使える時間(〜2h / 〜5h / 〜10h / それ以上)
+- `region`: 都道府県(コミュニティリンク生成に使用)
+
+### 3.2 推薦エンジン(純関数)
+
+- 各趣味は特性軸と同じ5軸のプロファイル(0–4)+ `initialCostMin/Max` + `weeklyHours` を持つ
+- スコア = 5軸のマンハッタン距離ベースの類似度(0–100%)
+- 予算超過・時間超過はハードフィルタではなく減点(理由を表示して提案は残す)
+- 上位6件を返し、各件に「なぜオススメか」「注意点(予算オーバー等)」の説明文を生成
+
+### 3.3 趣味データベース
+
+40件以上。各エントリ:
+`id, name, category, description, profile(5軸), initialCostMin, initialCostMax,
+monthlyCost, weeklyHours, gear(道具リスト), firstSteps(始め方3ステップ),
+communityKeywords(コミュニティ検索用キーワード), indoor(屋内可否)`
+
+カテゴリ例: スポーツ / アウトドア / 創作 / 音楽 / 料理・食 / 学習・知的 /
+ゲーム・エンタメ / コレクション / ボランティア・社会
+
+### 3.4 地域コミュニティサポート
+
+47都道府県の選択に対し、趣味ごとに検索URLを動的生成:
+- ジモティー(サークル・メンバー募集)
+- こくちーずプロ / connpass(イベント・勉強会系)
+- Google Maps(「{都道府県} {趣味} 教室」検索)
+- X(旧Twitter)ハッシュタグ検索
+
+URLはすべて `encodeURIComponent` で組み立てる純関数 `buildCommunityLinks(region, hobby)`。
+
+### 3.5 結果画面
+
+- マッチ度%つき趣味カード(上位6件)
+- カード内: 説明 / 初期投資レンジと道具 / 月額目安 / 始め方3ステップ /
+  地域コミュニティリンク / お気に入り☆
+- お気に入りと診断結果は localStorage に保存(`JSON.parse` は try-catch で防御)
+- 「もう一度診断する」で最初へ
+
+## 4. ディレクトリ構成
+
+```
+src/
+  data/hobbies.ts       # 趣味DB(40件以上)
+  data/questions.ts     # 診断質問
+  data/regions.ts       # 47都道府県
+  lib/recommend.ts      # 推薦エンジン(純関数)
+  lib/community.ts      # コミュニティリンク生成(純関数)
+  lib/storage.ts        # localStorage ラッパ(防御的)
+  components/Questionnaire.tsx
+  components/ResultList.tsx
+  components/HobbyCard.tsx
+  App.tsx / main.tsx / index.css
+tests/ (または src/**/*.test.ts)
+  recommend.test.ts     # スコアリング・境界値・予算減点
+  community.test.ts     # URLエンコード・全都道府県
+  hobbies.test.ts       # データ整合性(全件のスキーマ/値域検証)
+```
+
+## 5. 実装ステップ(Sonnet 向け)
+
+1. Vite + React + TS scaffold、Vitest 設定、`npm run build` / `npm test` が通る骨格
+2. 型定義とデータ(hobbies / questions / regions)
+3. `recommend.ts` + テスト(TDD: テスト先行)
+4. `community.ts` + `storage.ts` + テスト
+5. UIコンポーネントと画面遷移、CSS(レスポンシブ・ダークモード)
+6. データ整合性テスト、README 更新(起動方法)
+7. 全テスト・ビルド確認後にコミット
+
+## 6. 品質基準(Opus レビュー観点)
+
+- 推薦エンジンの数値バグ(ゼロ除算、境界値、NaN、%の丸め)
+- URL生成のエンコード漏れ・インジェクション
+- localStorage の破損データでクラッシュしないこと
+- データ40件以上・全件が値域を守ること(テストで担保)
+- ビルド・テストが実際に通ること
