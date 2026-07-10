@@ -1,32 +1,25 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
 import { Questionnaire } from './components/Questionnaire'
 import { ResultList } from './components/ResultList'
 import { HOBBIES } from './data/hobbies'
 import { QUESTIONS } from './data/questions'
 import { recommend } from './lib/recommend'
 import { buildTraitProfile } from './lib/profile'
-import { readJSON, writeJSON, STORAGE_KEYS } from './lib/storage'
+import { isSavedDiagnosis } from './lib/savedDiagnosis'
+import type { SavedDiagnosis } from './lib/savedDiagnosis'
+import { readJSON, writeJSON, isStringArray, STORAGE_KEYS } from './lib/storage'
 import type { Constraints } from './types'
 
 type Screen = 'intro' | 'quiz' | 'result'
 
-interface SavedDiagnosis {
-  answers: Record<string, number>
-  constraints: Constraints
-}
-
 function App() {
   const [screen, setScreen] = useState<Screen>('intro')
   const [saved, setSaved] = useState<SavedDiagnosis | null>(() =>
-    readJSON<SavedDiagnosis | null>(STORAGE_KEYS.lastAnswers, null),
+    readJSON<SavedDiagnosis | null>(STORAGE_KEYS.lastAnswers, null, isSavedDiagnosis),
   )
   const [favorites, setFavorites] = useState<string[]>(() =>
-    readJSON<string[]>(STORAGE_KEYS.favorites, []),
+    readJSON<string[]>(STORAGE_KEYS.favorites, [], isStringArray),
   )
-
-  useEffect(() => {
-    writeJSON(STORAGE_KEYS.favorites, favorites)
-  }, [favorites])
 
   const profile = useMemo(() => {
     if (!saved) return null
@@ -50,9 +43,11 @@ function App() {
   }
 
   function toggleFavorite(hobbyId: string) {
-    setFavorites((prev) =>
-      prev.includes(hobbyId) ? prev.filter((id) => id !== hobbyId) : [...prev, hobbyId],
-    )
+    const next = favorites.includes(hobbyId)
+      ? favorites.filter((id) => id !== hobbyId)
+      : [...favorites, hobbyId]
+    setFavorites(next)
+    writeJSON(STORAGE_KEYS.favorites, next)
   }
 
   return (

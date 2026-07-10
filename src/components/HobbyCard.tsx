@@ -44,16 +44,16 @@ export function HobbyCard({ result, region, isFavorite, onToggleFavorite }: Hobb
 
       {reasons.length > 0 && (
         <ul className="hobby-reasons">
-          {reasons.map((reason) => (
-            <li key={reason}>{reason}</li>
+          {reasons.map((reason, i) => (
+            <li key={`reason-${i}`}>{reason}</li>
           ))}
         </ul>
       )}
 
       {warnings.length > 0 && (
         <ul className="hobby-warnings">
-          {warnings.map((warning) => (
-            <li key={warning}>注意: {warning}</li>
+          {warnings.map((warning, i) => (
+            <li key={`warning-${i}`}>注意: {warning}</li>
           ))}
         </ul>
       )}
@@ -65,8 +65,8 @@ export function HobbyCard({ result, region, isFavorite, onToggleFavorite }: Hobb
           月額目安 {formatYen(hobby.monthlyCost)}
         </p>
         <ul className="gear-list">
-          {hobby.gear.map((item) => (
-            <li key={item}>{item}</li>
+          {hobby.gear.map((item, i) => (
+            <li key={`gear-${i}`}>{item}</li>
           ))}
         </ul>
       </section>
@@ -107,8 +107,8 @@ export function HobbyCard({ result, region, isFavorite, onToggleFavorite }: Hobb
       <section className="hobby-section">
         <h4>始め方の3ステップ</h4>
         <ol className="first-steps">
-          {hobby.firstSteps.map((step) => (
-            <li key={step}>{step}</li>
+          {hobby.firstSteps.map((step, i) => (
+            <li key={`step-${i}`}>{step}</li>
           ))}
         </ol>
       </section>

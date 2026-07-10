@@ -110,6 +110,30 @@ describe('recommend', () => {
     expect(results[0].warnings.some((w) => w.includes('予算'))).toBe(true)
   })
 
+  it('warns when initialCostMin fits the budget but initialCostMax exceeds it (e.g. piano with min=0)', () => {
+    // ピアノ型: 無料で始められるが本格的に揃えると高額
+    const piano = makeHobby({ id: 'piano-like', initialCostMin: 0, initialCostMax: 300000 })
+    const constraints: Constraints = { budget: 'under5000', time: 'over10h', region: '東京都' }
+    const results = recommend(NEUTRAL, constraints, [piano])
+    expect(results).toHaveLength(1)
+    expect(results[0].warnings.some((w) => w.includes('予算'))).toBe(true)
+    // 本格的に揃えた場合のレンジが注意文に含まれること
+    expect(results[0].warnings.some((w) => w.includes('300,000円'))).toBe(true)
+    // 減点されていること(制約なしより低いスコア)
+    const loose = recommend(NEUTRAL, LOOSE_CONSTRAINTS, [piano])[0]
+    expect(results[0].score).toBeLessThan(loose.score)
+  })
+
+  it('penalizes a hobby whose minimum cost exceeds the budget more than one where only the maximum does', () => {
+    const maxOnly = makeHobby({ id: 'max-only', initialCostMin: 0, initialCostMax: 500000 })
+    const minToo = makeHobby({ id: 'min-too', initialCostMin: 300000, initialCostMax: 500000 })
+    const constraints: Constraints = { budget: 'under5000', time: 'over10h', region: '東京都' }
+    const results = recommend(NEUTRAL, constraints, [maxOnly, minToo])
+    const maxOnlyResult = results.find((r) => r.hobby.id === 'max-only')!
+    const minTooResult = results.find((r) => r.hobby.id === 'min-too')!
+    expect(minTooResult.score).toBeLessThan(maxOnlyResult.score)
+  })
+
   it('does not hard-filter hobbies that exceed the weekly time budget; it penalizes and warns instead', () => {
     const timeHeavy = makeHobby({ id: 'time-heavy', weeklyHours: 30 })
     const constraints: Constraints = { budget: 'unlimited', time: 'under2h', region: '北海道' }

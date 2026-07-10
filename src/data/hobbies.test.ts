@@ -83,6 +83,8 @@ describe('HOBBIES data integrity', () => {
         expect(starterKit.budget.cost).toBeLessThanOrEqual(starterKit.full.cost)
         // budget プランは「約5千円以内」の想定
         expect(starterKit.budget.cost).toBeLessThanOrEqual(5000)
+        // 本格スタートの費用が初期投資レンジ上限と矛盾しないこと
+        expect(starterKit.full.cost).toBeLessThanOrEqual(hobby.initialCostMax)
       })
     })
   }

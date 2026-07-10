@@ -97,17 +97,27 @@ function buildReasons(user: TraitProfile, hobby: Hobby): string[] {
 }
 
 /**
- * 予算超過の減点とその注意文を計算する。ハードフィルタはせず、
- * 超過分に応じて 0〜40 点を減点しつつ、趣味自体は候補に残す。
+ * 予算超過の減点とその注意文を計算する。ハードフィルタはせず、趣味自体は候補に残す。
+ * initialCostMax(本格的に揃えた場合)が予算を超えるなら注意文+減点(最大20点)、
+ * initialCostMin(最低限の初期投資)まで予算を超えるならより強い減点(最大40点)にする。
  */
 function budgetPenalty(hobby: Hobby, budget: BudgetLevel): { penalty: number; warning?: string } {
   const limit = BUDGET_LIMITS[budget]
-  if (!Number.isFinite(limit) || hobby.initialCostMin <= limit) {
+  if (!Number.isFinite(limit) || hobby.initialCostMax <= limit) {
     return { penalty: 0 }
   }
-  const overageRatio = limit > 0 ? (hobby.initialCostMin - limit) / limit : 1
-  const penalty = Math.min(40, Math.round(overageRatio * 40))
-  const warning = `初期投資が目安${formatYen(hobby.initialCostMin)}〜で、選択した予算(${BUDGET_LABELS[budget]})を超える可能性があります。`
+  const costRange = `${formatYen(hobby.initialCostMin)}〜${formatYen(hobby.initialCostMax)}`
+  if (hobby.initialCostMin > limit) {
+    // 最低限の初期投資でも予算を超える: 強い減点
+    const overageRatio = limit > 0 ? (hobby.initialCostMin - limit) / limit : 1
+    const penalty = Math.min(40, Math.max(20, Math.round(20 + overageRatio * 20)))
+    const warning = `初期投資が目安${costRange}で、選択した予算(${BUDGET_LABELS[budget]})を超える可能性があります。`
+    return { penalty, warning }
+  }
+  // 最低限なら予算内だが、本格的に揃えると超える: 弱めの減点
+  const overageRatio = limit > 0 ? (hobby.initialCostMax - limit) / limit : 1
+  const penalty = Math.min(20, Math.round(overageRatio * 20))
+  const warning = `最低限なら予算内で始められますが、本格的に揃えると初期投資が${costRange}になり、選択した予算(${BUDGET_LABELS[budget]})を超える可能性があります。`
   return { penalty, warning }
 }
 
